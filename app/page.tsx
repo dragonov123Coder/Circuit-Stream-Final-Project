@@ -4,18 +4,19 @@ import React, { useState } from "react";
 import Image from "next/image";
 
 // Helper: Map weather codes to icons and backgrounds (simplified)
+const basePath = "/Circuit-Stream-Final-Project";
 const weatherVisuals = {
-  Clear: { icon: "./sunny.svg", bg: "from-yellow-200 to-blue-400" },
-  Clouds: { icon: "./cloudy.svg", bg: "from-gray-300 to-blue-500" },
-  Rain: { icon: "./rainy.svg", bg: "from-blue-400 to-gray-600" },
-  Drizzle: { icon: "./rainy.svg", bg: "from-blue-300 to-gray-500" },
-  Thunderstorm: { icon: "./storm.svg", bg: "from-gray-700 to-blue-900" },
-  Snow: { icon: "./snowy.svg", bg: "from-blue-100 to-blue-400" },
-  Mist: { icon: "./mist.svg", bg: "from-gray-200 to-gray-400" },
-  Smoke: { icon: "./mist.svg", bg: "from-gray-300 to-gray-500" },
-  Haze: { icon: "./mist.svg", bg: "from-gray-200 to-yellow-200" },
-  Fog: { icon: "./mist.svg", bg: "from-gray-300 to-gray-500" },
-  default: { icon: "./cloudy.svg", bg: "from-gray-200 to-blue-300" },
+  Clear: { icon: `${basePath}/sunny.svg`, bg: "from-yellow-200 to-blue-400" },
+  Clouds: { icon: `${basePath}/cloudy.svg`, bg: "from-gray-300 to-blue-500" },
+  Rain: { icon: `${basePath}/rainy.svg`, bg: "from-blue-400 to-gray-600" },
+  Drizzle: { icon: `${basePath}/rainy.svg`, bg: "from-blue-300 to-gray-500" },
+  Thunderstorm: { icon: `${basePath}/storm.svg`, bg: "from-gray-700 to-blue-900" },
+  Snow: { icon: `${basePath}/snowy.svg`, bg: "from-blue-100 to-blue-400" },
+  Mist: { icon: `${basePath}/mist.svg`, bg: "from-gray-200 to-gray-400" },
+  Smoke: { icon: `${basePath}/mist.svg`, bg: "from-gray-300 to-gray-500" },
+  Haze: { icon: `${basePath}/mist.svg`, bg: "from-gray-200 to-yellow-200" },
+  Fog: { icon: `${basePath}/mist.svg`, bg: "from-gray-300 to-gray-500" },
+  default: { icon: `${basePath}/cloudy.svg`, bg: "from-gray-200 to-blue-300" },
 };
 
 // Helper: AI message and tips
