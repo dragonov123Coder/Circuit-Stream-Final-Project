@@ -1,3 +1,5 @@
+// Headers, footer, and other layout components
+
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
