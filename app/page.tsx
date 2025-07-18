@@ -48,13 +48,40 @@ function formatDay(dt: number) {
   return new Date(dt * 1000).toLocaleDateString(undefined, { weekday: "short" });
 }
 
+
+
+// Type for forecast items
+type WeatherData = {
+  day: string;
+  icon: string;
+  min: number;
+  max: number;
+  cond: string;
+};
+
+// Type for OpenWeatherMap weather response (partial, only used fields)
+type WeatherResponse = {
+  name: string;
+  sys: { country: string };
+  main: { temp: number; humidity: number };
+  weather: { main: string; description: string }[];
+  wind: { speed: number };
+};
+
+// Type for OpenWeatherMap forecast list item (partial)
+type ForecastListItem = {
+  dt: number;
+  main: { temp: number };
+  weather: { main: string; description: string }[];
+};
+
 const API_KEY = process.env.NEXT_PUBLIC_OPENWEATHER_API_KEY;
 
 export default function Home() {
   const [city, setCity] = useState("");
   const [query, setQuery] = useState("");
-  const [weather, setWeather] = useState<any>(null);
-  const [forecast, setForecast] = useState<any[]>([]);
+  const [weather, setWeather] = useState<WeatherResponse | null>(null);
+  const [forecast, setForecast] = useState<WeatherData[]>([]);
   const [unit, setUnit] = useState<"metric" | "imperial">("metric");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -79,8 +106,8 @@ export default function Home() {
       );
       const fData = await fRes.json();
       // Group by day
-      const daily: any = {};
-      fData.list.forEach((item: any) => {
+      const daily: Record<string, ForecastListItem[]> = {};
+      (fData.list as ForecastListItem[]).forEach((item) => {
         const day = formatDay(item.dt);
         if (!daily[day]) daily[day] = [];
         daily[day].push(item);
@@ -88,8 +115,8 @@ export default function Home() {
       setForecast(
         Object.entries(daily)
           .slice(0, 5)
-          .map(([day, items]: any) => {
-            const temps = items.map((i: any) => i.main.temp);
+          .map(([day, items]) => {
+            const temps = items.map((i) => i.main.temp);
             const cond = items[0].weather[0].main;
             return {
               day,
@@ -100,8 +127,12 @@ export default function Home() {
             };
           })
       );
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e) {
+      if (e instanceof Error) {
+        setError(e.message);
+      } else {
+        setError(String(e));
+      }
       setWeather(null);
       setForecast([]);
     }
@@ -129,30 +160,34 @@ export default function Home() {
             `https://api.openweathermap.org/data/2.5/forecast?lat=${latitude}&lon=${longitude}&appid=${API_KEY}&units=${unit}`
           );
           const fData = await fRes.json();
-          // Group by day
-          const daily: any = {};
-          fData.list.forEach((item: any) => {
-            const day = formatDay(item.dt);
-            if (!daily[day]) daily[day] = [];
-            daily[day].push(item);
-          });
-          setForecast(
-            Object.entries(daily)
-              .slice(0, 5)
-              .map(([day, items]: any) => {
-                const temps = items.map((i: any) => i.main.temp);
-                const cond = items[0].weather[0].main;
-                return {
-                  day,
-                  icon: weatherVisuals[cond as keyof typeof weatherVisuals]?.icon || weatherVisuals.default.icon,
-                  min: Math.round(Math.min(...temps)),
-                  max: Math.round(Math.max(...temps)),
-                  cond,
-                };
-              })
-          );
-        } catch (e: any) {
-          setError(e.message);
+      // Group by day
+      const daily: Record<string, ForecastListItem[]> = {};
+      (fData.list as ForecastListItem[]).forEach((item) => {
+        const day = formatDay(item.dt);
+        if (!daily[day]) daily[day] = [];
+        daily[day].push(item);
+      });
+      setForecast(
+        Object.entries(daily)
+          .slice(0, 5)
+          .map(([day, items]) => {
+            const temps = items.map((i) => i.main.temp);
+            const cond = items[0].weather[0].main;
+            return {
+              day,
+              icon: weatherVisuals[cond as keyof typeof weatherVisuals]?.icon || weatherVisuals.default.icon,
+              min: Math.round(Math.min(...temps)),
+              max: Math.round(Math.max(...temps)),
+              cond,
+            };
+          })
+      );
+        } catch (e) {
+          if (e instanceof Error) {
+            setError(e.message);
+          } else {
+            setError(String(e));
+          }
           setWeather(null);
           setForecast([]);
         }
