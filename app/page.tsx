@@ -1,64 +1,301 @@
 
+"use client";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
-import PythonInterpreter from "./PythonInterpreter";
+
+// Helper: Map weather codes to icons and backgrounds (simplified)
+const weatherVisuals = {
+  Clear: { icon: "/sunny.svg", bg: "from-yellow-200 to-blue-400" },
+  Clouds: { icon: "/cloudy.svg", bg: "from-gray-300 to-blue-500" },
+  Rain: { icon: "/rainy.svg", bg: "from-blue-400 to-gray-600" },
+  Drizzle: { icon: "/rainy.svg", bg: "from-blue-300 to-gray-500" },
+  Thunderstorm: { icon: "/storm.svg", bg: "from-gray-700 to-blue-900" },
+  Snow: { icon: "/snowy.svg", bg: "from-blue-100 to-blue-400" },
+  Mist: { icon: "/mist.svg", bg: "from-gray-200 to-gray-400" },
+  Smoke: { icon: "/mist.svg", bg: "from-gray-300 to-gray-500" },
+  Haze: { icon: "/mist.svg", bg: "from-gray-200 to-yellow-200" },
+  Fog: { icon: "/mist.svg", bg: "from-gray-300 to-gray-500" },
+  default: { icon: "/cloudy.svg", bg: "from-gray-200 to-blue-300" },
+};
+
+// Helper: AI message and tips
+function getAIMessages(temp: number, condition: string) {
+  let message = "";
+  let tip = "";
+  if (condition.includes("rain")) {
+    message = "It looks like a rainy day, don’t forget your umbrella!";
+    tip = "Wear waterproof shoes and a raincoat.";
+  } else if (condition.includes("snow")) {
+    message = "Snowy weather ahead. Dress warmly and drive safe!";
+    tip = "Wear boots, gloves, and a warm coat.";
+  } else if (condition.includes("clear")) {
+    message = "It’s a clear day. Enjoy the sunshine!";
+    tip = temp > 25 ? "Stay hydrated and wear sunscreen." : "A light jacket should be enough.";
+  } else if (condition.includes("cloud")) {
+    message = "Cloudy skies today.";
+    tip = temp < 15 ? "Bring a sweater." : "Comfortable weather for a walk.";
+  } else {
+    message = "Check the weather before heading out!";
+    tip = "Dress appropriately for the conditions.";
+  }
+  if (temp < 5) tip = "Bundle up, it’s cold!";
+  if (temp > 30) tip = "It’s hot! Wear light clothes and drink water.";
+  return { message, tip };
+}
+
+// Helper: Format date
+function formatDay(dt: number) {
+  return new Date(dt * 1000).toLocaleDateString(undefined, { weekday: "short" });
+}
+
+const API_KEY = "YOUR_OPENWEATHERMAP_API_KEY"; // Replace with your API key
 
 export default function Home() {
+  const [city, setCity] = useState("");
+  const [query, setQuery] = useState("");
+  const [weather, setWeather] = useState<any>(null);
+  const [forecast, setForecast] = useState<any[]>([]);
+  const [unit, setUnit] = useState<"metric" | "imperial">("metric");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [history, setHistory] = useState<string[]>([]);
+
+  // Fetch weather by city
+  async function fetchWeather(cityName: string, units = unit) {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch(
+        `https://api.openweathermap.org/data/2.5/weather?q=${cityName}&appid=${API_KEY}&units=${units}`
+      );
+      if (!res.ok) throw new Error("City not found");
+      const data = await res.json();
+      setWeather(data);
+      setCity(`${data.name}, ${data.sys.country}`);
+      setHistory((h) => [data.name, ...h.filter((c) => c !== data.name)].slice(0, 5));
+      // Fetch forecast
+      const fRes = await fetch(
+        `https://api.openweathermap.org/data/2.5/forecast?q=${cityName}&appid=${API_KEY}&units=${units}`
+      );
+      const fData = await fRes.json();
+      // Group by day
+      const daily: any = {};
+      fData.list.forEach((item: any) => {
+        const day = formatDay(item.dt);
+        if (!daily[day]) daily[day] = [];
+        daily[day].push(item);
+      });
+      setForecast(
+        Object.entries(daily)
+          .slice(0, 5)
+          .map(([day, items]: any) => {
+            const temps = items.map((i: any) => i.main.temp);
+            const cond = items[0].weather[0].main;
+            return {
+              day,
+              icon: weatherVisuals[cond as keyof typeof weatherVisuals]?.icon || weatherVisuals.default.icon,
+              min: Math.round(Math.min(...temps)),
+              max: Math.round(Math.max(...temps)),
+              cond,
+            };
+          })
+      );
+    } catch (e: any) {
+      setError(e.message);
+      setWeather(null);
+      setForecast([]);
+    }
+    setLoading(false);
+  }
+
+  // Fetch weather by geolocation
+  async function fetchByLocation() {
+    setLoading(true);
+    setError("");
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        try {
+          const res = await fetch(
+            `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${API_KEY}&units=${unit}`
+          );
+          if (!res.ok) throw new Error("Location not found");
+          const data = await res.json();
+          setWeather(data);
+          setCity(`${data.name}, ${data.sys.country}`);
+          setHistory((h) => [data.name, ...h.filter((c) => c !== data.name)].slice(0, 5));
+          // Fetch forecast
+          const fRes = await fetch(
+            `https://api.openweathermap.org/data/2.5/forecast?lat=${latitude}&lon=${longitude}&appid=${API_KEY}&units=${unit}`
+          );
+          const fData = await fRes.json();
+          // Group by day
+          const daily: any = {};
+          fData.list.forEach((item: any) => {
+            const day = formatDay(item.dt);
+            if (!daily[day]) daily[day] = [];
+            daily[day].push(item);
+          });
+          setForecast(
+            Object.entries(daily)
+              .slice(0, 5)
+              .map(([day, items]: any) => {
+                const temps = items.map((i: any) => i.main.temp);
+                const cond = items[0].weather[0].main;
+                return {
+                  day,
+                  icon: weatherVisuals[cond as keyof typeof weatherVisuals]?.icon || weatherVisuals.default.icon,
+                  min: Math.round(Math.min(...temps)),
+                  max: Math.round(Math.max(...temps)),
+                  cond,
+                };
+              })
+          );
+        } catch (e: any) {
+          setError(e.message);
+          setWeather(null);
+          setForecast([]);
+        }
+        setLoading(false);
+      },
+      () => {
+        setError("Location access denied");
+        setLoading(false);
+      }
+    );
+  }
+
+  // °C/°F toggle
+  function toggleUnit() {
+    setUnit((u) => (u === "metric" ? "imperial" : "metric"));
+    if (city) fetchWeather(city, unit === "metric" ? "imperial" : "metric");
+  }
+
+  // Autocomplete: show history
+  const filteredHistory = query
+    ? history.filter((c) => c.toLowerCase().includes(query.toLowerCase()))
+    : history;
+
+  // Dynamic background
+  const bg = weather
+    ? weatherVisuals[weather.weather[0].main as keyof typeof weatherVisuals]?.bg || weatherVisuals.default.bg
+    : weatherVisuals.default.bg;
+
+  // AI message
+  const ai = weather
+    ? getAIMessages(Math.round(weather.main.temp), weather.weather[0].description)
+    : { message: "", tip: "" };
+
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-zinc-50 to-zinc-200 dark:from-zinc-900 dark:to-zinc-800 font-sans">
-      {/* Navigation Bar */}
-      <nav className="w-full flex items-center justify-between px-8 py-4 bg-white/80 dark:bg-zinc-900/80 shadow-sm sticky top-0 z-10">
-        <div className="flex items-center gap-2">
-          <Image src="/file.svg" alt="Logo" width={32} height={32} />
-          <span className="text-xl font-bold tracking-tight text-blue-700 dark:text-blue-300">AI & ML Academy</span>
-        </div>
-        <div className="flex gap-6 text-sm font-medium">
-          <a href="#courses" className="hover:text-blue-600 transition-colors">Courses</a>
-          <a href="#interpreter" className="hover:text-blue-600 transition-colors">Python Lab</a>
-          <a href="#about" className="hover:text-blue-600 transition-colors">About</a>
-        </div>
-      </nav>
-
-      {/* Hero Section */}
-      <header className="flex flex-col items-center justify-center flex-1 py-16 px-4 text-center bg-gradient-to-b from-blue-100/40 to-transparent dark:from-blue-950/30">
-        <h1 className="text-4xl sm:text-5xl font-extrabold mb-4 text-zinc-900 dark:text-white drop-shadow-lg">Learn AI & Machine Learning<br className="hidden sm:block" /> with Python</h1>
-        <p className="text-lg sm:text-xl text-zinc-700 dark:text-zinc-200 max-w-2xl mb-8">Master the fundamentals of Artificial Intelligence and Machine Learning with hands-on Python labs, interactive lessons, and real-world projects. No prior experience required!</p>
-        <a href="#courses" className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 py-3 rounded-full shadow-lg transition-colors text-lg">Start Learning</a>
-      </header>
-
-      {/* Courses Section (Filler) */}
-      <section id="courses" className="py-16 px-4 bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800">
-        <h2 className="text-2xl sm:text-3xl font-bold mb-6 text-center text-zinc-900 dark:text-white">Our Courses</h2>
-        <div className="max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-8">
-          <div className="bg-zinc-100 dark:bg-zinc-800 rounded-lg p-6 shadow flex flex-col items-start">
-            <h3 className="font-semibold text-lg mb-2">Introduction to AI</h3>
-            <p className="text-zinc-700 dark:text-zinc-300 mb-4">(Filler) Learn the basics of Artificial Intelligence, its history, and real-world applications. Coming soon!</p>
-            <span className="inline-block bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200 px-3 py-1 rounded text-xs">Beginner</span>
+    <div
+      className={`min-h-screen flex flex-col items-center justify-center px-2 py-6 sm:py-10 transition-colors duration-700 bg-gradient-to-br ${bg}`}
+    >
+      <main className="w-full max-w-md bg-white/80 dark:bg-black/60 rounded-2xl shadow-xl p-6 flex flex-col gap-6 items-center animate-fade-in">
+        <h1 className="text-2xl font-bold text-center mb-2 tracking-tight">Weather Assistant</h1>
+        {/* Search bar */}
+        <form
+          className="flex w-full gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (query) fetchWeather(query);
+          }}
+        >
+          <input
+            className="flex-1 rounded-l-lg px-3 py-2 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400 text-base"
+            type="text"
+            placeholder="Search city..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            list="history"
+            autoComplete="off"
+          />
+          <datalist id="history">
+            {filteredHistory.map((c) => (
+              <option key={c} value={c} />
+            ))}
+          </datalist>
+          <button
+            type="submit"
+            className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-r-lg transition-colors"
+            aria-label="Search"
+          >
+            <span role="img" aria-label="search">🔍</span>
+          </button>
+          <button
+            type="button"
+            className="ml-2 bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-2 rounded-lg transition-colors"
+            onClick={fetchByLocation}
+            aria-label="Use current location"
+          >
+            <span role="img" aria-label="location">📍</span>
+          </button>
+        </form>
+        {/* Error */}
+        {error && <div className="text-red-600 text-sm">{error}</div>}
+        {/* Loading */}
+        {loading && <div className="text-blue-600 text-sm animate-pulse">Loading...</div>}
+        {/* Weather card */}
+        {weather && (
+          <div className="w-full flex flex-col items-center gap-2 animate-fade-in">
+            <div className="flex items-center gap-3">
+              {/* Weather icon */}
+              <Image
+                src={weatherVisuals[weather.weather[0].main as keyof typeof weatherVisuals]?.icon || weatherVisuals.default.icon}
+                alt={weather.weather[0].main}
+                width={48}
+                height={48}
+                className="drop-shadow"
+              />
+              <span className="text-xl font-semibold">{city}</span>
+            </div>
+            <div className="flex items-center gap-2 text-3xl font-bold">
+              {Math.round(weather.main.temp)}°
+              <button
+                onClick={toggleUnit}
+                className="ml-1 text-base px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 transition-colors"
+                aria-label="Toggle °C/°F"
+              >
+                {unit === "metric" ? "C" : "F"}
+              </button>
+            </div>
+            <div className="flex items-center gap-2 text-lg capitalize">
+              <span>{weather.weather[0].description}</span>
+            </div>
+            <div className="flex gap-4 text-sm text-gray-700 dark:text-gray-300">
+              <span>💨 Wind: {Math.round(weather.wind.speed)} {unit === "metric" ? "m/s" : "mph"}</span>
+              <span>💧 Humidity: {weather.main.humidity}%</span>
+            </div>
+            {/* AI message */}
+            <div className="w-full bg-blue-50 dark:bg-blue-900/40 rounded-lg p-3 mt-2 text-center text-blue-900 dark:text-blue-100 animate-fade-in">
+              <div className="font-medium">{ai.message}</div>
+              <div className="text-sm mt-1">{ai.tip}</div>
+            </div>
           </div>
-          <div className="bg-zinc-100 dark:bg-zinc-800 rounded-lg p-6 shadow flex flex-col items-start">
-            <h3 className="font-semibold text-lg mb-2">Machine Learning with Python</h3>
-            <p className="text-zinc-700 dark:text-zinc-300 mb-4">(Filler) Dive into supervised and unsupervised learning, model evaluation, and hands-on Python coding. Coming soon!</p>
-            <span className="inline-block bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200 px-3 py-1 rounded text-xs">Intermediate</span>
+        )}
+        {/* 5-day forecast */}
+        {forecast.length > 0 && (
+          <div className="w-full mt-2">
+            <div className="font-semibold mb-2">5-Day Forecast:</div>
+            <div className="flex gap-2 overflow-x-auto pb-2">
+              {forecast.map((f) => (
+                <div
+                  key={f.day}
+                  className="flex flex-col items-center bg-white/70 dark:bg-black/40 rounded-xl shadow p-3 min-w-[80px] animate-fade-in"
+                >
+                  <div className="text-sm font-medium mb-1">{f.day}</div>
+                  <Image src={f.icon} alt={f.cond} width={32} height={32} />
+                  <div className="text-xs mt-1">{f.cond}</div>
+                  <div className="text-base font-bold mt-1">{f.max}°</div>
+                  <div className="text-xs text-gray-500">{f.min}°</div>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
-
-      {/* Python Interpreter Section */}
-      <section id="interpreter" className="py-16 px-4 bg-gradient-to-b from-zinc-100 to-zinc-200 dark:from-zinc-900 dark:to-zinc-800 border-t border-zinc-200 dark:border-zinc-800">
-        <h2 className="text-2xl sm:text-3xl font-bold mb-6 text-center text-zinc-900 dark:text-white">Try Python in Your Browser</h2>
-        <PythonInterpreter />
-      </section>
-
-      {/* About Section */}
-      <section id="about" className="py-12 px-4 bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800">
-        <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-xl sm:text-2xl font-bold mb-4 text-zinc-900 dark:text-white">About AI & ML Academy</h2>
-          <p className="text-zinc-700 dark:text-zinc-300 mb-2">(Filler) AI & ML Academy is dedicated to making artificial intelligence and machine learning accessible to everyone. Our interactive platform combines engaging lessons, hands-on coding, and real-world projects to help you learn effectively and efficiently.</p>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="py-6 px-4 text-center text-zinc-500 dark:text-zinc-400 text-sm bg-zinc-50 dark:bg-zinc-950 border-t border-zinc-200 dark:border-zinc-800 mt-auto">
-        &copy; {new Date().getFullYear()} AI & ML Academy. All rights reserved.
+        )}
+      </main>
+      <footer className="mt-8 text-xs text-gray-600 dark:text-gray-300 text-center">
+        Powered by OpenWeatherMap. &copy; {new Date().getFullYear()}<br />
+        <span className="opacity-60">AI suggestions are for informational purposes only.</span>
       </footer>
     </div>
   );
