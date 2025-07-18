@@ -48,7 +48,7 @@ function formatDay(dt: number) {
   return new Date(dt * 1000).toLocaleDateString(undefined, { weekday: "short" });
 }
 
-const API_KEY = "YOUR_OPENWEATHERMAP_API_KEY"; // Replace with your API key
+const API_KEY = process.env.NEXT_PUBLIC_OPENWEATHER_API_KEY;
 
 export default function Home() {
   const [city, setCity] = useState("");
