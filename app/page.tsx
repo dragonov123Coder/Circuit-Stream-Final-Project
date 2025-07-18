@@ -300,3 +300,5 @@ export default function Home() {
     </div>
   );
 }
+
+console.log("API KEY:", API_KEY); // For debugging, remove in production
