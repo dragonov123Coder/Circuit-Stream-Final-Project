@@ -4,19 +4,18 @@ import React, { useState } from "react";
 import Image from "next/image";
 
 // Helper: Map weather codes to icons and backgrounds (simplified)
-const basePath = "/Circuit-Stream-Final-Project";
 const weatherVisuals = {
-  Clear: { icon: `${basePath}/sunny.svg`, bg: "from-yellow-200 to-blue-400" },
-  Clouds: { icon: `${basePath}/cloudy.svg`, bg: "from-gray-300 to-blue-500" },
-  Rain: { icon: `${basePath}/rainy.svg`, bg: "from-blue-400 to-gray-600" },
-  Drizzle: { icon: `${basePath}/rainy.svg`, bg: "from-blue-300 to-gray-500" },
-  Thunderstorm: { icon: `${basePath}/storm.svg`, bg: "from-gray-700 to-blue-900" },
-  Snow: { icon: `${basePath}/snowy.svg`, bg: "from-blue-100 to-blue-400" },
-  Mist: { icon: `${basePath}/mist.svg`, bg: "from-gray-200 to-gray-400" },
-  Smoke: { icon: `${basePath}/mist.svg`, bg: "from-gray-300 to-gray-500" },
-  Haze: { icon: `${basePath}/mist.svg`, bg: "from-gray-200 to-yellow-200" },
-  Fog: { icon: `${basePath}/mist.svg`, bg: "from-gray-300 to-gray-500" },
-  default: { icon: `${basePath}/cloudy.svg`, bg: "from-gray-200 to-blue-300" },
+  Clear: { icon: "/sunny.svg", bg: "from-yellow-200 to-blue-400" },
+  Clouds: { icon: "/cloudy.svg", bg: "from-gray-300 to-blue-500" },
+  Rain: { icon: "/rainy.svg", bg: "from-blue-400 to-gray-600" },
+  Drizzle: { icon: "/rainy.svg", bg: "from-blue-300 to-gray-500" },
+  Thunderstorm: { icon: "/storm.svg", bg: "from-gray-700 to-blue-900" },
+  Snow: { icon: "/snowy.svg", bg: "from-blue-100 to-blue-400" },
+  Mist: { icon: "/mist.svg", bg: "from-gray-200 to-gray-400" },
+  Smoke: { icon: "/mist.svg", bg: "from-gray-300 to-gray-500" },
+  Haze: { icon: "/mist.svg", bg: "from-gray-200 to-yellow-200" },
+  Fog: { icon: "/mist.svg", bg: "from-gray-300 to-gray-500" },
+  default: { icon: "/cloudy.svg", bg: "from-gray-200 to-blue-300" },
 };
 
 // Helper: AI message and tips
@@ -226,7 +225,7 @@ export default function Home() {
     <div
       className={`min-h-screen flex flex-col items-center justify-center px-2 py-6 sm:py-10 transition-colors duration-700 bg-gradient-to-br ${bg}`}
     >
-      <main className="w-full max-w-md bg-white/80 dark:bg-black/60 rounded-2xl shadow-xl p-6 flex flex-col gap-6 items-center animate-fade-in">
+      <main className="w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl 2xl:max-w-2xl bg-white/80 dark:bg-black/60 rounded-2xl shadow-xl p-4 sm:p-6 flex flex-col gap-6 items-center animate-fade-in">
         <h1 className="text-2xl font-bold text-center mb-2 tracking-tight">Weather Assistant</h1>
         {/* Search bar */}
         <form
@@ -237,7 +236,7 @@ export default function Home() {
           }}
         >
           <input
-            className="flex-1 rounded-l-lg px-3 py-2 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400 text-base"
+            className="flex-1 rounded-l-lg px-2 py-1 sm:px-3 sm:py-2 md:px-4 md:py-2 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm sm:text-base md:text-lg"
             type="text"
             placeholder="Search city..."
             value={query}
@@ -252,14 +251,14 @@ export default function Home() {
           </datalist>
           <button
             type="submit"
-            className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-r-lg transition-colors"
+            className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 sm:px-3 sm:py-2 md:px-4 md:py-2 rounded-r-lg transition-colors text-sm sm:text-base md:text-lg"
             aria-label="Search"
           >
             <span role="img" aria-label="search">🔍</span>
           </button>
           <button
             type="button"
-            className="ml-2 bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-2 rounded-lg transition-colors"
+            className="ml-1 sm:ml-2 bg-gray-200 hover:bg-gray-300 text-gray-700 px-2 py-1 sm:px-3 sm:py-2 md:px-4 md:py-2 rounded-lg transition-colors text-sm sm:text-base md:text-lg"
             onClick={fetchByLocation}
             aria-label="Use current location"
           >
@@ -281,6 +280,7 @@ export default function Home() {
                 width={48}
                 height={48}
                 className="drop-shadow"
+                style={{ width: typeof window !== 'undefined' && window.innerWidth < 200 ? 24 : 48, height: typeof window !== 'undefined' && window.innerWidth < 200 ? 24 : 48 }}
               />
               <span className="text-xl font-semibold">{city}</span>
             </div>
@@ -319,7 +319,7 @@ export default function Home() {
                   className="flex flex-col items-center bg-white/70 dark:bg-black/40 rounded-xl shadow p-3 min-w-[80px] animate-fade-in"
                 >
                   <div className="text-sm font-medium mb-1">{f.day}</div>
-                  <Image src={f.icon} alt={f.cond} width={32} height={32} />
+                  <Image src={f.icon} alt={f.cond} width={32} height={32} style={{ width: typeof window !== 'undefined' && window.innerWidth < 200 ? 16 : 32, height: typeof window !== 'undefined' && window.innerWidth < 200 ? 16 : 32 }} />
                   <div className="text-xs mt-1">{f.cond}</div>
                   <div className="text-base font-bold mt-1">{f.max}°</div>
                   <div className="text-xs text-gray-500">{f.min}°</div>
