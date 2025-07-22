@@ -83,8 +83,13 @@ type HourlyForecast = {
   cond: string;
 };
 
-const API_KEY = typeof window !== "undefined" && (window as any).OPENWEATHER_API_KEY
-  ? (window as any).OPENWEATHER_API_KEY
+declare global {
+  interface Window {
+    OPENWEATHER_API_KEY?: string;
+  }
+}
+const API_KEY = typeof window !== "undefined" && window.OPENWEATHER_API_KEY
+  ? window.OPENWEATHER_API_KEY
   : process.env.NEXT_PUBLIC_OPENWEATHER_API_KEY;
 
 export default function Home() {
