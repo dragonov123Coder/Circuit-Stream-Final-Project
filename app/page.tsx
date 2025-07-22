@@ -49,7 +49,6 @@ function formatDay(dt: number) {
 }
 
 
-
 // Type for forecast items
 type WeatherData = {
   day: string;
@@ -73,6 +72,15 @@ type ForecastListItem = {
   dt: number;
   main: { temp: number };
   weather: { main: string; description: string }[];
+  // Add more fields if needed
+};
+
+// Type for hourly forecast
+type HourlyForecast = {
+  time: string;
+  icon: string;
+  temp: number;
+  cond: string;
 };
 
 const API_KEY = process.env.NEXT_PUBLIC_OPENWEATHER_API_KEY;
@@ -86,6 +94,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [history, setHistory] = useState<string[]>([]);
+  const [hourly, setHourly] = useState<HourlyForecast[]>([]);
 
   // Fetch weather by city
   async function fetchWeather(cityName: string, units = unit) {
@@ -107,11 +116,27 @@ export default function Home() {
       const fData = await fRes.json();
       // Group by day
       const daily: Record<string, ForecastListItem[]> = {};
-      (fData.list as ForecastListItem[]).forEach((item) => {
+      const hourlyArr: HourlyForecast[] = [];
+      (fData.list as ForecastListItem[]).forEach((item, idx) => {
+        // Hourly forecast: next 12 hours (API returns every 3 hours)
+        if (idx < 12) {
+          const date = new Date(item.dt * 1000);
+          const hour = date.getHours().toString().padStart(2, "0");
+          const min = date.getMinutes().toString().padStart(2, "0");
+          const time = `${hour}:00`;
+          const cond = item.weather[0].main;
+          hourlyArr.push({
+            time,
+            icon: weatherVisuals[cond as keyof typeof weatherVisuals]?.icon || weatherVisuals.default.icon,
+            temp: Math.round(item.main.temp),
+            cond,
+          });
+        }
         const day = formatDay(item.dt);
         if (!daily[day]) daily[day] = [];
         daily[day].push(item);
       });
+      setHourly(hourlyArr);
       setForecast(
         Object.entries(daily)
           .slice(0, 5)
@@ -160,13 +185,29 @@ export default function Home() {
             `https://api.openweathermap.org/data/2.5/forecast?lat=${latitude}&lon=${longitude}&appid=${API_KEY}&units=${unit}`
           );
           const fData = await fRes.json();
-      // Group by day
+      // Group by day and hourly (next 12)
       const daily: Record<string, ForecastListItem[]> = {};
-      (fData.list as ForecastListItem[]).forEach((item) => {
+      const hourlyArr: HourlyForecast[] = [];
+      (fData.list as ForecastListItem[]).forEach((item, idx) => {
+        // Hourly forecast: next 12 hours (API returns every 3 hours)
+        if (idx < 12) {
+          const date = new Date(item.dt * 1000);
+          const hour = date.getHours().toString().padStart(2, "0");
+          const min = date.getMinutes().toString().padStart(2, "0");
+          const time = `${hour}:00`;
+          const cond = item.weather[0].main;
+          hourlyArr.push({
+            time,
+            icon: weatherVisuals[cond as keyof typeof weatherVisuals]?.icon || weatherVisuals.default.icon,
+            temp: Math.round(item.main.temp),
+            cond,
+          });
+        }
         const day = formatDay(item.dt);
         if (!daily[day]) daily[day] = [];
         daily[day].push(item);
       });
+      setHourly(hourlyArr);
       setForecast(
         Object.entries(daily)
           .slice(0, 5)
@@ -336,11 +377,30 @@ export default function Home() {
             </div>
           </div>
         )}
+        {/* Hourly forecast */}
+        {hourly.length > 0 && (
+          <div className="w-full mt-2">
+            <div className="font-semibold mb-2">Hourly Forecast (Next 12 Hours):</div>
+            <div className="flex gap-2 overflow-x-auto pb-2 forecast-scroll">
+              {hourly.map((h, idx) => (
+                <div
+                  key={idx}
+                  className="flex flex-col items-center bg-white/70 dark:bg-black/40 rounded-xl shadow p-2 min-w-[60px] animate-fade-in"
+                >
+                  <div className="text-xs font-medium mb-1">{h.time}</div>
+                  <Image src={h.icon} alt={h.cond} width={24} height={24} style={{ width: typeof window !== 'undefined' && window.innerWidth < 200 ? 12 : 24, height: typeof window !== 'undefined' && window.innerWidth < 200 ? 12 : 24 }} />
+                  <div className="text-xs mt-1">{h.cond}</div>
+                  <div className="text-base font-bold mt-1">{h.temp}°</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         {/* 5-day forecast */}
         {forecast.length > 0 && (
           <div className="w-full mt-2">
             <div className="font-semibold mb-2">5-Day Forecast:</div>
-            <div className="flex gap-2 overflow-x-auto pb-2">
+            <div className="flex gap-2 overflow-x-auto pb-2 forecast-scroll">
               {forecast.map((f) => (
                 <div
                   key={f.day}
@@ -359,7 +419,7 @@ export default function Home() {
       </main>
       <footer className="mt-8 text-xs text-gray-600 dark:text-gray-300 text-center">
         Powered by OpenWeatherMap. &copy; {new Date().getFullYear()}<br />
-        <span className="opacity-60">AI suggestions are for informational purposes only.</span>
+        <span className="opacity-70">AI suggestions are for informational purposes only.</span>
       </footer>
     </div>
   );
