@@ -88,9 +88,7 @@ declare global {
     OPENWEATHER_API_KEY?: string;
   }
 }
-const API_KEY = typeof window !== "undefined" && window.OPENWEATHER_API_KEY
-  ? window.OPENWEATHER_API_KEY
-  : process.env.NEXT_PUBLIC_OPENWEATHER_API_KEY;
+const API_KEY = "0f0d7f0e9b7e6484354169898589100f"
 
 export default function Home() {
   const [city, setCity] = useState("");
