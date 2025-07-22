@@ -122,7 +122,7 @@ export default function Home() {
         if (idx < 12) {
           const date = new Date(item.dt * 1000);
           const hour = date.getHours().toString().padStart(2, "0");
-          const min = date.getMinutes().toString().padStart(2, "0");
+          // const min = date.getMinutes().toString().padStart(2, "0");
           const time = `${hour}:00`;
           const cond = item.weather[0].main;
           hourlyArr.push({
@@ -193,7 +193,6 @@ export default function Home() {
         if (idx < 12) {
           const date = new Date(item.dt * 1000);
           const hour = date.getHours().toString().padStart(2, "0");
-          const min = date.getMinutes().toString().padStart(2, "0");
           const time = `${hour}:00`;
           const cond = item.weather[0].main;
           hourlyArr.push({
@@ -258,7 +257,8 @@ export default function Home() {
     // OpenWeatherMap returns timezone offset in seconds
     // If not available, fallback to UTC
     const nowUTC = new Date();
-    const offset = (weather as any).timezone ?? 0; // seconds
+    // Add timezone to WeatherResponse type
+    const offset = (weather as WeatherResponse & { timezone?: number }).timezone ?? 0; // seconds
     const localTime = new Date(nowUTC.getTime() + offset * 1000);
     return localTime.getHours();
   }
