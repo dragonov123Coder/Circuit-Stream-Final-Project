@@ -83,7 +83,9 @@ type HourlyForecast = {
   cond: string;
 };
 
-const API_KEY = process.env.NEXT_PUBLIC_OPENWEATHER_API_KEY;
+const API_KEY = typeof window !== "undefined" && (window as any).OPENWEATHER_API_KEY
+  ? (window as any).OPENWEATHER_API_KEY
+  : process.env.NEXT_PUBLIC_OPENWEATHER_API_KEY;
 
 export default function Home() {
   const [city, setCity] = useState("");
