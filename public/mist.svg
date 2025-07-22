@@ -1,0 +1,7 @@
+<!-- mist.svg -->
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Mist Lines -->
+  <rect x="16" y="28" width="32" height="2" rx="1" fill="#aaa"></rect>
+  <rect x="20" y="34" width="28" height="2" rx="1" fill="#aaa"></rect>
+  <rect x="18" y="40" width="30" height="2" rx="1" fill="#aaa"></rect>
+</svg>

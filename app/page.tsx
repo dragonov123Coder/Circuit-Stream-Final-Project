@@ -211,10 +211,37 @@ export default function Home() {
     ? history.filter((c) => c.toLowerCase().includes(query.toLowerCase()))
     : history;
 
-  // Dynamic background
-  const bg = weather
-    ? weatherVisuals[weather.weather[0].main as keyof typeof weatherVisuals]?.bg || weatherVisuals.default.bg
-    : weatherVisuals.default.bg;
+  // Dynamic background based on local time and weather
+  function getLocalHour(weather: WeatherResponse | null) {
+    if (!weather) return null;
+    // OpenWeatherMap returns timezone offset in seconds
+    // If not available, fallback to UTC
+    const nowUTC = new Date();
+    const offset = (weather as any).timezone ?? 0; // seconds
+    const localTime = new Date(nowUTC.getTime() + offset * 1000);
+    return localTime.getHours();
+  }
+
+  function getBg(weather: WeatherResponse | null) {
+    if (!weather) return weatherVisuals.default.bg;
+    const hour = getLocalHour(weather);
+    const isNight = hour !== null && (hour < 6 || hour > 18);
+    const cond = weather.weather[0].main as keyof typeof weatherVisuals;
+    // Night backgrounds
+    if (isNight) {
+      if (cond === "Clear") return "from-blue-900 to-black";
+      if (cond === "Clouds") return "from-gray-700 to-black";
+      if (cond === "Rain" || cond === "Drizzle") return "from-gray-800 to-blue-900";
+      if (cond === "Thunderstorm") return "from-gray-900 to-black";
+      if (cond === "Snow") return "from-blue-800 to-gray-300";
+      if (cond === "Mist" || cond === "Fog" || cond === "Smoke" || cond === "Haze") return "from-gray-800 to-gray-900";
+      return "from-gray-900 to-black";
+    }
+    // Day backgrounds
+    return weatherVisuals[cond]?.bg || weatherVisuals.default.bg;
+  }
+
+  const bg = getBg(weather);
 
   // AI message
   const ai = weather
@@ -285,11 +312,12 @@ export default function Home() {
               <span className="text-xl font-semibold">{city}</span>
             </div>
             <div className="flex items-center gap-2 text-3xl font-bold">
-              {Math.round(weather.main.temp)}°
+              <span style={{ color: 'var(--temperature-number-color)' }}>{Math.round(weather.main.temp)}°</span>
               <button
                 onClick={toggleUnit}
                 className="ml-1 text-base px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 transition-colors"
                 aria-label="Toggle °C/°F"
+                style={{ color: 'var(--temperature-color)' }}
               >
                 {unit === "metric" ? "C" : "F"}
               </button>
