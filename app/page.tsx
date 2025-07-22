@@ -309,7 +309,7 @@ export default function Home() {
           }}
         >
           <input
-            className="flex-1 rounded-l-lg px-2 py-1 sm:px-3 sm:py-2 md:px-4 md:py-2 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm sm:text-base md:text-lg"
+            className="flex-1 rounded-l-lg px-2 py-1 sm:px-3 sm:py-2 md:px-4 md:py-2 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm sm:text-base md:text-lg text-gray-900"
             type="text"
             placeholder="Search city..."
             value={query}
