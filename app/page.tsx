@@ -100,149 +100,179 @@ export default function Home() {
   const [error, setError] = useState("");
   const [history, setHistory] = useState<string[]>([]);
   const [hourly, setHourly] = useState<HourlyForecast[]>([]);
+  // For fade transition
+  const [fade, setFade] = useState<'in' | 'out'>('in');
+  const [weatherKey, setWeatherKey] = useState(0);
+  // For background fade
+  const [prevBg, setPrevBg] = useState<string>("");
+  const [bgFade, setBgFade] = useState<'in' | 'out'>('in');
 
-  // Fetch weather by city
+  // Fetch weather by city with fade transition
   async function fetchWeather(cityName: string, units = unit) {
     setLoading(true);
     setError("");
-    try {
-      const res = await fetch(
-        `https://api.openweathermap.org/data/2.5/weather?q=${cityName}&appid=${API_KEY}&units=${units}`
-      );
-      if (!res.ok) throw new Error("City not found");
-      const data = await res.json();
-      setWeather(data);
-      setCity(`${data.name}, ${data.sys.country}`);
-      setHistory((h) => [data.name, ...h.filter((c) => c !== data.name)].slice(0, 5));
-      // Fetch forecast
-      const fRes = await fetch(
-        `https://api.openweathermap.org/data/2.5/forecast?q=${cityName}&appid=${API_KEY}&units=${units}`
-      );
-      const fData = await fRes.json();
-      // Group by day
-      const daily: Record<string, ForecastListItem[]> = {};
-      const hourlyArr: HourlyForecast[] = [];
-      (fData.list as ForecastListItem[]).forEach((item, idx) => {
-        // Hourly forecast: next 12 hours (API returns every 3 hours)
-        if (idx < 12) {
-          const date = new Date(item.dt * 1000);
-          const hour = date.getHours().toString().padStart(2, "0");
-          // const min = date.getMinutes().toString().padStart(2, "0");
-          const time = `${hour}:00`;
-          const cond = item.weather[0].main;
-          hourlyArr.push({
-            time,
-            icon: weatherVisuals[cond as keyof typeof weatherVisuals]?.icon || weatherVisuals.default.icon,
-            temp: Math.round(item.main.temp),
-            cond,
-          });
-        }
-        const day = formatDay(item.dt);
-        if (!daily[day]) daily[day] = [];
-        daily[day].push(item);
-      });
-      setHourly(hourlyArr);
-      setForecast(
-        Object.entries(daily)
-          .slice(0, 5)
-          .map(([day, items]) => {
-            const temps = items.map((i) => i.main.temp);
-            const cond = items[0].weather[0].main;
-            return {
-              day,
+    setFade('out');
+    setBgFade('out');
+    setPrevBg(bg); // Save current bg before change
+    setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://api.openweathermap.org/data/2.5/weather?q=${cityName}&appid=${API_KEY}&units=${units}`
+        );
+        if (!res.ok) throw new Error("City not found");
+        const data = await res.json();
+        setWeather(data);
+        setCity(`${data.name}, ${data.sys.country}`);
+        setHistory((h) => [data.name, ...h.filter((c) => c !== data.name)].slice(0, 5));
+        // Fetch forecast
+        const fRes = await fetch(
+          `https://api.openweathermap.org/data/2.5/forecast?q=${cityName}&appid=${API_KEY}&units=${units}`
+        );
+        const fData = await fRes.json();
+        // Group by day
+        const daily: Record<string, ForecastListItem[]> = {};
+        const hourlyArr: HourlyForecast[] = [];
+        (fData.list as ForecastListItem[]).forEach((item, idx) => {
+          // Hourly forecast: next 12 hours (API returns every 3 hours)
+          if (idx < 12) {
+            const date = new Date(item.dt * 1000);
+            const hour = date.getHours().toString().padStart(2, "0");
+            // const min = date.getMinutes().toString().padStart(2, "0");
+            const time = `${hour}:00`;
+            const cond = item.weather[0].main;
+            hourlyArr.push({
+              time,
               icon: weatherVisuals[cond as keyof typeof weatherVisuals]?.icon || weatherVisuals.default.icon,
-              min: Math.round(Math.min(...temps)),
-              max: Math.round(Math.max(...temps)),
+              temp: Math.round(item.main.temp),
               cond,
-            };
-          })
-      );
-    } catch (e) {
-      if (e instanceof Error) {
-        setError(e.message);
-      } else {
-        setError(String(e));
+            });
+          }
+          const day = formatDay(item.dt);
+          if (!daily[day]) daily[day] = [];
+          daily[day].push(item);
+        });
+        setHourly(hourlyArr);
+        setForecast(
+          Object.entries(daily)
+            .slice(0, 5)
+            .map(([day, items]) => {
+              const temps = items.map((i) => i.main.temp);
+              const cond = items[0].weather[0].main;
+              return {
+                day,
+                icon: weatherVisuals[cond as keyof typeof weatherVisuals]?.icon || weatherVisuals.default.icon,
+                min: Math.round(Math.min(...temps)),
+                max: Math.round(Math.max(...temps)),
+                cond,
+              };
+            })
+        );
+        setWeatherKey((k) => k + 1); // Change key to trigger transition
+      } catch (e) {
+        if (e instanceof Error) {
+          setError(e.message);
+        } else {
+          setError(String(e));
+        }
+        setWeather(null);
+        setForecast([]);
       }
-      setWeather(null);
-      setForecast([]);
-    }
-    setLoading(false);
+      setLoading(false);
+      setTimeout(() => {
+        setFade('in');
+        setBgFade('in');
+      }, 50); // Fade in after data loads
+    }, 200); // Fade out duration
   }
 
-  // Fetch weather by geolocation
+  // Fetch weather by geolocation with fade transition
   async function fetchByLocation() {
     setLoading(true);
     setError("");
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const { latitude, longitude } = pos.coords;
-        try {
-          const res = await fetch(
-            `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${API_KEY}&units=${unit}`
-          );
-          if (!res.ok) throw new Error("Location not found");
-          const data = await res.json();
-          setWeather(data);
-          setCity(`${data.name}, ${data.sys.country}`);
-          setHistory((h) => [data.name, ...h.filter((c) => c !== data.name)].slice(0, 5));
-          // Fetch forecast
-          const fRes = await fetch(
-            `https://api.openweathermap.org/data/2.5/forecast?lat=${latitude}&lon=${longitude}&appid=${API_KEY}&units=${unit}`
-          );
-          const fData = await fRes.json();
-      // Group by day and hourly (next 12)
-      const daily: Record<string, ForecastListItem[]> = {};
-      const hourlyArr: HourlyForecast[] = [];
-      (fData.list as ForecastListItem[]).forEach((item, idx) => {
-        // Hourly forecast: next 12 hours (API returns every 3 hours)
-        if (idx < 12) {
-          const date = new Date(item.dt * 1000);
-          const hour = date.getHours().toString().padStart(2, "0");
-          const time = `${hour}:00`;
-          const cond = item.weather[0].main;
-          hourlyArr.push({
-            time,
-            icon: weatherVisuals[cond as keyof typeof weatherVisuals]?.icon || weatherVisuals.default.icon,
-            temp: Math.round(item.main.temp),
-            cond,
-          });
-        }
-        const day = formatDay(item.dt);
-        if (!daily[day]) daily[day] = [];
-        daily[day].push(item);
-      });
-      setHourly(hourlyArr);
-      setForecast(
-        Object.entries(daily)
-          .slice(0, 5)
-          .map(([day, items]) => {
-            const temps = items.map((i) => i.main.temp);
-            const cond = items[0].weather[0].main;
-            return {
-              day,
-              icon: weatherVisuals[cond as keyof typeof weatherVisuals]?.icon || weatherVisuals.default.icon,
-              min: Math.round(Math.min(...temps)),
-              max: Math.round(Math.max(...temps)),
-              cond,
-            };
-          })
-      );
-        } catch (e) {
-          if (e instanceof Error) {
-            setError(e.message);
-          } else {
-            setError(String(e));
+    setFade('out');
+    setBgFade('out');
+    setPrevBg(bg); // Save current bg before change
+    setTimeout(() => {
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const { latitude, longitude } = pos.coords;
+          try {
+            const res = await fetch(
+              `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${API_KEY}&units=${unit}`
+            );
+            if (!res.ok) throw new Error("Location not found");
+            const data = await res.json();
+            setWeather(data);
+            setCity(`${data.name}, ${data.sys.country}`);
+            setHistory((h) => [data.name, ...h.filter((c) => c !== data.name)].slice(0, 5));
+            // Fetch forecast
+            const fRes = await fetch(
+              `https://api.openweathermap.org/data/2.5/forecast?lat=${latitude}&lon=${longitude}&appid=${API_KEY}&units=${unit}`
+            );
+            const fData = await fRes.json();
+            // Group by day and hourly (next 12)
+            const daily: Record<string, ForecastListItem[]> = {};
+            const hourlyArr: HourlyForecast[] = [];
+            (fData.list as ForecastListItem[]).forEach((item, idx) => {
+              // Hourly forecast: next 12 hours (API returns every 3 hours)
+              if (idx < 12) {
+                const date = new Date(item.dt * 1000);
+                const hour = date.getHours().toString().padStart(2, "0");
+                const time = `${hour}:00`;
+                const cond = item.weather[0].main;
+                hourlyArr.push({
+                  time,
+                  icon: weatherVisuals[cond as keyof typeof weatherVisuals]?.icon || weatherVisuals.default.icon,
+                  temp: Math.round(item.main.temp),
+                  cond,
+                });
+              }
+              const day = formatDay(item.dt);
+              if (!daily[day]) daily[day] = [];
+              daily[day].push(item);
+            });
+            setHourly(hourlyArr);
+            setForecast(
+              Object.entries(daily)
+                .slice(0, 5)
+                .map(([day, items]) => {
+                  const temps = items.map((i) => i.main.temp);
+                  const cond = items[0].weather[0].main;
+                  return {
+                    day,
+                    icon: weatherVisuals[cond as keyof typeof weatherVisuals]?.icon || weatherVisuals.default.icon,
+                    min: Math.round(Math.min(...temps)),
+                    max: Math.round(Math.max(...temps)),
+                    cond,
+                  };
+                })
+            );
+            setWeatherKey((k) => k + 1); // Change key to trigger transition
+          } catch (e) {
+            if (e instanceof Error) {
+              setError(e.message);
+            } else {
+              setError(String(e));
+            }
+            setWeather(null);
+            setForecast([]);
           }
-          setWeather(null);
-          setForecast([]);
+          setLoading(false);
+          setTimeout(() => {
+            setFade('in');
+            setBgFade('in');
+          }, 50); // Fade in after data loads
+        },
+        () => {
+          setError("Location access denied");
+          setLoading(false);
+          setTimeout(() => {
+            setFade('in');
+            setBgFade('in');
+          }, 50);
         }
-        setLoading(false);
-      },
-      () => {
-        setError("Location access denied");
-        setLoading(false);
-      }
-    );
+      );
+    }, 200); // Fade out duration
   }
 
   // °C/°F toggle
@@ -295,10 +325,19 @@ export default function Home() {
     : { message: "", tip: "" };
 
   return (
-    <div
-      className={`min-h-screen flex flex-col items-center justify-center px-2 py-6 sm:py-10 transition-colors duration-700 bg-gradient-to-br ${bg}`}
-    >
-      <main className="w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl 2xl:max-w-2xl bg-white/80 dark:bg-black/60 rounded-2xl shadow-xl p-4 sm:p-6 flex flex-col gap-6 items-center animate-fade-in">
+    <div className="relative min-h-screen flex flex-col items-center justify-center px-2 py-6 sm:py-10 overflow-hidden">
+      {/* Background crossfade layer */}
+      <div
+        className={`absolute inset-0 z-0 transition-opacity duration-700 bg-gradient-to-br ${prevBg} pointer-events-none`}
+        style={{ opacity: bgFade === 'in' ? 0 : 1 }}
+        aria-hidden="true"
+      />
+      <div
+        className={`absolute inset-0 z-0 transition-opacity duration-700 bg-gradient-to-br ${bg} pointer-events-none`}
+        style={{ opacity: bgFade === 'in' ? 1 : 0 }}
+        aria-hidden="true"
+      />
+      <main className="relative z-10 w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl 2xl:max-w-2xl bg-white/80 dark:bg-black/60 rounded-2xl shadow-xl p-4 sm:p-6 flex flex-col gap-6 items-center">
         <h1 className="text-2xl font-bold text-center mb-2 tracking-tight">Weather Assistant</h1>
         {/* Search bar */}
         <form
@@ -342,85 +381,90 @@ export default function Home() {
         {error && <div className="text-red-600 text-sm">{error}</div>}
         {/* Loading */}
         {loading && <div className="text-blue-600 text-sm animate-pulse">Loading...</div>}
-        {/* Weather card */}
-        {weather && (
-          <div className="w-full flex flex-col items-center gap-2 animate-fade-in">
-            <div className="flex items-center gap-3">
-              {/* Weather icon */}
-              <Image
-                src={weatherVisuals[weather.weather[0].main as keyof typeof weatherVisuals]?.icon || weatherVisuals.default.icon}
-                alt={weather.weather[0].main}
-                width={48}
-                height={48}
-                className="drop-shadow"
-                style={{ width: typeof window !== 'undefined' && window.innerWidth < 200 ? 24 : 48, height: typeof window !== 'undefined' && window.innerWidth < 200 ? 24 : 48 }}
-              />
-              <span className="text-xl font-semibold">{city}</span>
-            </div>
-            <div className="flex items-center gap-2 text-3xl font-bold">
-              <span style={{ color: 'var(--temperature-number-color)' }}>{Math.round(weather.main.temp)}°</span>
-              <button
-                onClick={toggleUnit}
-                className="ml-1 text-base px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 transition-colors"
-                aria-label="Toggle °C/°F"
-                style={{ color: 'var(--temperature-color)' }}
-              >
-                {unit === "metric" ? "C" : "F"}
-              </button>
-            </div>
-            <div className="flex items-center gap-2 text-lg capitalize">
-              <span>{weather.weather[0].description}</span>
-            </div>
-            <div className="flex gap-4 text-sm text-gray-700 dark:text-gray-300">
-              <span>💨 Wind: {Math.round(weather.wind.speed)} {unit === "metric" ? "m/s" : "mph"}</span>
-              <span>💧 Humidity: {weather.main.humidity}%</span>
-            </div>
-            {/* AI message */}
-            <div className="w-full bg-blue-50 dark:bg-blue-900/40 rounded-lg p-3 mt-2 text-center text-blue-900 dark:text-blue-100 animate-fade-in">
-              <div className="font-medium">{ai.message}</div>
-              <div className="text-sm mt-1">{ai.tip}</div>
-            </div>
-          </div>
-        )}
-        {/* Hourly forecast */}
-        {hourly.length > 0 && (
-          <div className="w-full mt-2">
-            <div className="font-semibold mb-2">Hourly Forecast (Next 12 Hours):</div>
-            <div className="flex gap-2 overflow-x-auto pb-2 forecast-scroll">
-              {hourly.map((h, idx) => (
-                <div
-                  key={idx}
-                  className="flex flex-col items-center bg-white/70 dark:bg-black/40 rounded-xl shadow p-2 min-w-[60px] animate-fade-in"
+        {/* Weather card, hourly, and forecast with fade transition */}
+        <div
+          key={weatherKey}
+          className={`w-full transition-opacity duration-300 ${fade === 'in' ? 'opacity-100' : 'opacity-0'}`}
+        >
+          {weather && (
+            <div className="flex flex-col items-center gap-2 animate-fade-in">
+              <div className="flex items-center gap-3">
+                {/* Weather icon */}
+                <Image
+                  src={weatherVisuals[weather.weather[0].main as keyof typeof weatherVisuals]?.icon || weatherVisuals.default.icon}
+                  alt={weather.weather[0].main}
+                  width={48}
+                  height={48}
+                  className="drop-shadow"
+                  style={{ width: typeof window !== 'undefined' && window.innerWidth < 200 ? 24 : 48, height: typeof window !== 'undefined' && window.innerWidth < 200 ? 24 : 48 }}
+                />
+                <span className="text-xl font-semibold">{city}</span>
+              </div>
+              <div className="flex items-center gap-2 text-3xl font-bold">
+                <span style={{ color: 'var(--temperature-number-color)' }}>{Math.round(weather.main.temp)}°</span>
+                <button
+                  onClick={toggleUnit}
+                  className="ml-1 text-base px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 transition-colors"
+                  aria-label="Toggle °C/°F"
+                  style={{ color: 'var(--temperature-color)' }}
                 >
-                  <div className="text-xs font-medium mb-1">{h.time}</div>
-                  <Image src={h.icon} alt={h.cond} width={24} height={24} style={{ width: typeof window !== 'undefined' && window.innerWidth < 200 ? 12 : 24, height: typeof window !== 'undefined' && window.innerWidth < 200 ? 12 : 24 }} />
-                  <div className="text-xs mt-1">{h.cond}</div>
-                  <div className="text-base font-bold mt-1">{h.temp}°</div>
-                </div>
-              ))}
+                  {unit === "metric" ? "C" : "F"}
+                </button>
+              </div>
+              <div className="flex items-center gap-2 text-lg capitalize">
+                <span>{weather.weather[0].description}</span>
+              </div>
+              <div className="flex gap-4 text-sm text-gray-700 dark:text-gray-300">
+                <span>💨 Wind: {Math.round(weather.wind.speed)} {unit === "metric" ? "m/s" : "mph"}</span>
+                <span>💧 Humidity: {weather.main.humidity}%</span>
+              </div>
+              {/* AI message */}
+              <div className="w-full bg-blue-50 dark:bg-blue-900/40 rounded-lg p-3 mt-2 text-center text-blue-900 dark:text-blue-100 animate-fade-in">
+                <div className="font-medium">{ai.message}</div>
+                <div className="text-sm mt-1">{ai.tip}</div>
+              </div>
             </div>
-          </div>
-        )}
-        {/* 5-day forecast */}
-        {forecast.length > 0 && (
-          <div className="w-full mt-2">
-            <div className="font-semibold mb-2">5-Day Forecast:</div>
-            <div className="flex gap-2 overflow-x-auto pb-2 forecast-scroll">
-              {forecast.map((f) => (
-                <div
-                  key={f.day}
-                  className="flex flex-col items-center bg-white/70 dark:bg-black/40 rounded-xl shadow p-3 min-w-[80px] animate-fade-in"
-                >
-                  <div className="text-sm font-medium mb-1">{f.day}</div>
-                  <Image src={f.icon} alt={f.cond} width={32} height={32} style={{ width: typeof window !== 'undefined' && window.innerWidth < 200 ? 16 : 32, height: typeof window !== 'undefined' && window.innerWidth < 200 ? 16 : 32 }} />
-                  <div className="text-xs mt-1">{f.cond}</div>
-                  <div className="text-base font-bold mt-1">{f.max}°</div>
-                  <div className="text-xs text-gray-500">{f.min}°</div>
-                </div>
-              ))}
+          )}
+          {/* Hourly forecast */}
+          {hourly.length > 0 && (
+            <div className="w-full mt-2">
+              <div className="font-semibold mb-2">Hourly Forecast (Next 12 Hours):</div>
+              <div className="flex gap-2 overflow-x-auto pb-2 forecast-scroll">
+                {hourly.map((h, idx) => (
+                  <div
+                    key={idx}
+                    className="flex flex-col items-center bg-white/70 dark:bg-black/40 rounded-xl shadow p-2 min-w-[60px] animate-fade-in"
+                  >
+                    <div className="text-xs font-medium mb-1">{h.time}</div>
+                    <Image src={h.icon} alt={h.cond} width={24} height={24} style={{ width: typeof window !== 'undefined' && window.innerWidth < 200 ? 12 : 24, height: typeof window !== 'undefined' && window.innerWidth < 200 ? 12 : 24 }} />
+                    <div className="text-xs mt-1">{h.cond}</div>
+                    <div className="text-base font-bold mt-1">{h.temp}°</div>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+          {/* 5-day forecast */}
+          {forecast.length > 0 && (
+            <div className="w-full mt-2">
+              <div className="font-semibold mb-2">5-Day Forecast:</div>
+              <div className="flex gap-2 overflow-x-auto pb-2 forecast-scroll">
+                {forecast.map((f) => (
+                  <div
+                    key={f.day}
+                    className="flex flex-col items-center bg-white/70 dark:bg-black/40 rounded-xl shadow p-3 min-w-[80px] animate-fade-in"
+                  >
+                    <div className="text-sm font-medium mb-1">{f.day}</div>
+                    <Image src={f.icon} alt={f.cond} width={32} height={32} style={{ width: typeof window !== 'undefined' && window.innerWidth < 200 ? 16 : 32, height: typeof window !== 'undefined' && window.innerWidth < 200 ? 16 : 32 }} />
+                    <div className="text-xs mt-1">{f.cond}</div>
+                    <div className="text-base font-bold mt-1">{f.max}°</div>
+                    <div className="text-xs text-gray-500">{f.min}°</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </main>
       <footer className="mt-8 text-xs text-gray-600 dark:text-gray-300 text-center">
         Powered by OpenWeatherMap. &copy; {new Date().getFullYear()}<br />
