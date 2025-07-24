@@ -302,7 +302,7 @@ export default function Home() {
           return state ? `${city}, ${state}, ${country}` : `${city}, ${country}`;
         });
       setAllCities(cities.filter((c): c is string => !!c));
-        } catch (e) {
+        } catch {
           // Fail silently, fallback to empty
           setAllCities([]);
         }
