@@ -289,7 +289,7 @@ export default function Home() {
       // Only load if not already loaded and query is not empty
       if (allCities.length === 0 && query) {
         try {
-          const res = await fetch('./world-cities.csv');
+          const res = await fetch('world-cities.csv');
           const text = await res.text();
       // Assume CSV format: first line is header, then city,state,country in columns
       const lines = text.split('\n');
