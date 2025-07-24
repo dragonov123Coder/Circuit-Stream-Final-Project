@@ -1,4 +1,3 @@
-
 "use client";
 import React, { useState } from "react";
 import Image from "next/image";
@@ -99,6 +98,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [history, setHistory] = useState<string[]>([]);
+  const [allCities, setAllCities] = useState<string[]>([]);
   const [hourly, setHourly] = useState<HourlyForecast[]>([]);
   // For fade transition
   const [fade, setFade] = useState<'in' | 'out'>('in');
@@ -114,6 +114,7 @@ export default function Home() {
     setFade('out');
     setBgFade('out');
     setPrevBg(bg); // Save current bg before change
+    setQuery("");
     setTimeout(async () => {
       try {
         const res = await fetch(
@@ -192,6 +193,7 @@ export default function Home() {
     setFade('out');
     setBgFade('out');
     setPrevBg(bg); // Save current bg before change
+    setQuery("");
     setTimeout(() => {
       navigator.geolocation.getCurrentPosition(
         async (pos) => {
@@ -282,9 +284,39 @@ export default function Home() {
   }
 
   // Autocomplete: show history
+  React.useEffect(() => {
+    async function loadCities() {
+      // Only load if not already loaded and query is not empty
+      if (allCities.length === 0 && query) {
+        try {
+          const res = await fetch('/world-cities.csv');
+          const text = await res.text();
+      // Assume CSV format: first line is header, then city,state,country in columns
+      const lines = text.split('\n');
+      // Remove header
+      const cities = lines.slice(1)
+        .map(line => {
+          const [city, country, state] = line.split(',').map(s => s?.trim() || "");
+          if (!city) return null;
+          // If state is empty, skip it in display
+          return state ? `${city}, ${state}, ${country}` : `${city}, ${country}`;
+        });
+      setAllCities(cities.filter((c): c is string => !!c));
+        } catch (e) {
+          // Fail silently, fallback to empty
+          setAllCities([]);
+        }
+      }
+    }
+    loadCities();
+  }, [query]);
+
   const filteredHistory = query
-    ? history.filter((c) => c.toLowerCase().includes(query.toLowerCase()))
-    : history;
+    ? (allCities.length > 0
+        ? allCities.filter((c) => c.toLowerCase().startsWith(query.toLowerCase())).slice(0, 10)
+        : history.filter((c) => c.toLowerCase().includes(query.toLowerCase()))
+      )
+    : [];
 
   // Dynamic background based on local time and weather
   function getLocalHour(weather: WeatherResponse | null) {
@@ -347,35 +379,57 @@ export default function Home() {
             if (query) fetchWeather(query);
           }}
         >
-          <input
-            className="flex-1 rounded-l-lg px-2 py-1 sm:px-3 sm:py-2 md:px-4 md:py-2 lg:px-6 lg:py-3 xl:px-8 xl:py-4 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl text-gray-900"
-            type="text"
-            placeholder="Search city..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            list="history"
-            autoComplete="off"
-          />
-          <datalist id="history">
-            {filteredHistory.map((c) => (
-              <option key={c} value={c} />
-            ))}
-          </datalist>
-          <button
-            type="submit"
-            className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 sm:px-3 sm:py-2 md:px-4 md:py-2 lg:px-6 lg:py-3 xl:px-8 xl:py-4 rounded-r-lg transition-colors text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl"
-            aria-label="Search"
-          >
-            <span role="img" aria-label="search">🔍</span>
-          </button>
-          <button
-            type="button"
-            className="ml-1 sm:ml-2 bg-gray-200 hover:bg-gray-300 text-gray-700 px-2 py-1 sm:px-3 sm:py-2 md:px-4 md:py-2 lg:px-6 lg:py-3 xl:px-8 xl:py-4 rounded-lg transition-colors text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl"
-            onClick={fetchByLocation}
-            aria-label="Use current location"
-          >
-            <span role="img" aria-label="location">📍</span>
-          </button>
+          <div className="relative w-full">
+            <input
+              className="flex-1 w-full rounded-l-lg px-2 py-1 sm:px-3 sm:py-2 md:px-4 md:py-2 lg:px-6 lg:py-3 xl:px-8 xl:py-4 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl text-gray-900"
+              type="text"
+              placeholder="Search city..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              autoComplete="off"
+            />
+            {/* Custom dropdown for autocomplete */}
+            {filteredHistory.length > 0 && (
+              <ul className="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg shadow-lg z-30 max-h-40 overflow-y-auto">
+                {filteredHistory.map((c) => (
+                  <li
+                    key={c}
+                    className="px-4 py-2 cursor-pointer hover:bg-blue-100 dark:hover:bg-gray-800 text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl"
+                    onMouseDown={() => setQuery(c)}
+                  >
+                    {c}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div className="relative group">
+            <button
+              type="submit"
+              className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 sm:px-3 sm:py-2 md:px-4 md:py-2 lg:px-6 lg:py-3 xl:px-8 xl:py-4 rounded-r-lg transition-colors text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl"
+              aria-label="Search"
+            >
+              <span role="img" aria-label="search">🔍</span>
+            </button>
+            {/* Tooltip for search button */}
+            <div className="absolute left-1/2 -translate-x-1/2 -top-14 w-48 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 text-xs rounded-lg shadow-lg p-3 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-300 z-20">
+              Search for a city by name.
+            </div>
+          </div>
+          <div className="relative group">
+            <button
+              type="button"
+              className="ml-1 sm:ml-2 bg-gray-200 hover:bg-gray-300 text-gray-700 px-2 py-1 sm:px-3 sm:py-2 md:px-4 md:py-2 lg:px-6 lg:py-3 xl:px-8 xl:py-4 rounded-lg transition-colors text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl"
+              onClick={fetchByLocation}
+              aria-label="Use current location"
+            >
+              <span role="img" aria-label="location">📍</span>
+            </button>
+            {/* Tooltip for location button */}
+            <div className="absolute left-1/2 -translate-x-1/2 -top-14 w-48 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 text-xs rounded-lg shadow-lg p-3 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-300 z-20">
+              Use your current location to get weather data.
+            </div>
+          </div>
         </form>
         {/* Error */}
         {error && <div className="text-red-600 text-sm">{error}</div>}
@@ -400,16 +454,34 @@ export default function Home() {
                 />
                 <span className="text-xl font-semibold">{city}</span>
               </div>
-              <div className="flex items-center gap-2 text-3xl lg:text-5xl xl:text-6xl font-bold">
+              <div className="flex items-center gap-2 text-3xl lg:text-5xl xl:text-6xl font-bold relative">
                 <span style={{ color: 'var(--temperature-number-color)' }}>{Math.round(weather.main.temp)}°</span>
-                <button
-                  onClick={toggleUnit}
-                  className="ml-1 text-base px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 transition-colors"
-                  aria-label="Toggle °C/°F"
-                  style={{ color: 'var(--temperature-color)' }}
-                >
-                  {unit === "metric" ? "C" : "F"}
-                </button>
+                {/* Toggle Switch Button */}
+                <div className="ml-1 relative group">
+                  <button
+                    onClick={toggleUnit}
+                    className={
+                      `w-20 h-10 flex items-center rounded-full px-0 transition-colors duration-300 relative ` +
+                      (unit === "metric" ? "bg-blue-200" : "bg-yellow-200")
+                    }
+                    aria-label="Toggle °C/°F"
+                    style={{ color: 'var(--temperature-color)' }}
+                  >
+                    <span className={`w-1/2 text-center text-lg font-semibold transition-colors duration-300 z-10 ${unit === "metric" ? "text-blue-700" : "text-gray-500"}`}>C</span>
+                    <span className={`w-1/2 text-center text-lg font-semibold transition-colors duration-300 z-10 ${unit === "imperial" ? "text-yellow-700" : "text-gray-500"}`}>F</span>
+                    <span
+                      className={
+                        `absolute top-1 left-1 w-8 h-8 rounded-full shadow transition-transform duration-300 bg-white border border-gray-300 ` +
+                        (unit === "metric" ? "translate-x-0" : "translate-x-10")
+                      }
+                      style={{ pointerEvents: 'none', opacity: 0.6 }}
+                    />
+                  </button>
+                  {/* Info card on hover */}
+                  <div className="absolute left-1/2 -translate-x-1/2 -top-14 w-48 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 text-xs rounded-lg shadow-lg p-3 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-300 z-20">
+                    Toggle between Celsius and Fahrenheit units for temperature display.
+                  </div>
+                </div>
               </div>
               <div className="flex items-center gap-2 text-lg lg:text-2xl xl:text-3xl capitalize">
                 <span>{weather.weather[0].description}</span>
