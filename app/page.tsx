@@ -289,19 +289,24 @@ export default function Home() {
       // Only load if not already loaded and query is not empty
       if (allCities.length === 0 && query) {
         try {
-          const res = await fetch('world-cities.csv');
+          const res = await fetch('cities.csv');
           const text = await res.text();
-      // Assume CSV format: first line is header, then city,state,country in columns
-      const lines = text.split('\n');
-      // Remove header
-      const cities = lines.slice(1)
-        .map(line => {
-          const [city, country, state] = line.split(',').map(s => s?.trim() || "");
-          if (!city) return null;
-          // If state is empty, skip it in display
-          return state ? `${city}, ${state}, ${country}` : `${city}, ${country}`;
-        });
-      setAllCities(cities.filter((c): c is string => !!c));
+          // cities.csv format: id,name,state_id,state_code,state_name,country_id,country_code,country_name,latitude,longitude,wikiDataId
+          const lines = text.split('\n');
+          // Remove header
+          const cities = lines.slice(1)
+            .map(line => {
+              // Handle CSV parsing with potential quoted values
+              const columns = line.split(',');
+              if (columns.length < 7) return null;
+              const name = columns[1]?.replace(/"/g, '').trim();
+              const stateCode = columns[3]?.trim();
+              const countryCode = columns[6]?.trim();
+              if (!name) return null;
+              // If stateCode is empty, skip it in display
+              return stateCode ? `${name}, ${stateCode}, ${countryCode}` : `${name}, ${countryCode}`;
+            });
+          setAllCities(cities.filter((c): c is string => !!c));
         } catch {
           // Fail silently, fallback to empty
           setAllCities([]);
